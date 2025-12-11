@@ -1,0 +1,223 @@
+import React, { createContext, useState, useEffect } from 'react';
+import { generateCardCode, TemplateStrategies, getDefaultVanillaTemplate } from '../utils/templates';
+
+export const ProjectContext = createContext();
+
+const STORAGE_KEY = 'roundsStudioDataV2';
+
+export const ProjectProvider = ({ children }) => {
+    const [appData, setAppData] = useState({ projects: [], snippets: { ModsPlus: [], Vanilla: [], Custom: [] } });
+    const [currentProject, setCurrentProject] = useState(null);
+    const [currentCardIndex, setCurrentCardIndex] = useState(-1);
+
+    // LOAD
+    useEffect(() => {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+            const parsed = JSON.parse(stored);
+            // Migration for existing data without snippets
+            if (!parsed.snippets) parsed.snippets = { ModsPlus: [], Vanilla: [], Custom: [] };
+            setAppData(parsed);
+        }
+    }, []);
+
+    // SAVE
+    useEffect(() => {
+        if (appData.projects.length > 0 || appData.snippets) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+        }
+    }, [appData]);
+
+    const createProject = (name, strategy) => {
+        const newProj = {
+            id: Date.now().toString(),
+            name: name,
+            lastEdited: Date.now(),
+            data: {
+                name: name,
+                strategy: strategy || 'Vanilla',
+                customTemplate: strategy === 'Custom' ? getDefaultVanillaTemplate() : '',
+                cards: [],
+                customSnippets: [] // Legacy per-project snippets, keeping for compatibility
+            }
+        };
+        setAppData(prev => ({ ...prev, projects: [...prev.projects, newProj] }));
+        openProject(newProj.id);
+    };
+
+    const deleteProject = (id) => {
+        setAppData(prev => ({
+            ...prev,
+            projects: prev.projects.filter(p => p.id !== id)
+        }));
+        if (currentProject && currentProject.id === id) {
+            closeProject();
+        }
+    };
+
+    // SNIPPET ACTIONS
+    const saveSnippet = (name, code, strategy) => {
+        setAppData(prev => {
+            const targetStrat = strategy || 'Vanilla';
+            const list = prev.snippets[targetStrat] || [];
+
+            // Check content to avoid dupes? Or just append.
+            const newSnippet = { id: Date.now(), name, code };
+            return {
+                ...prev,
+                snippets: {
+                    ...prev.snippets,
+                    [targetStrat]: [...list, newSnippet]
+                }
+            };
+        });
+    };
+
+    const deleteSnippet = (id, strategy) => {
+        setAppData(prev => {
+            const targetStrat = strategy || 'Vanilla';
+            return {
+                ...prev,
+                snippets: {
+                    ...prev.snippets,
+                    [targetStrat]: prev.snippets[targetStrat].filter(s => s.id !== id)
+                }
+            };
+        });
+    };
+
+    const openProject = (id) => {
+        const proj = appData.projects.find(p => p.id === id);
+        if (proj) {
+            setCurrentProject(JSON.parse(JSON.stringify(proj)));
+            setAppData(prev => ({
+                ...prev,
+                projects: prev.projects.map(p =>
+                    p.id === id ? { ...p, lastEdited: Date.now() } : p
+                )
+            }));
+
+            if (proj.data.cards.length > 0) {
+                setCurrentCardIndex(0);
+            } else {
+                setCurrentCardIndex(-1);
+            }
+        }
+    };
+
+    const closeProject = () => {
+        if (currentProject) {
+            saveProject(currentProject);
+        }
+        setCurrentProject(null);
+        setCurrentCardIndex(-1);
+    };
+
+    const saveProject = (projState) => {
+        if (!projState) return;
+        setAppData(prev => ({
+            ...prev,
+            projects: prev.projects.map(p =>
+                p.id === projState.id ? { ...p, data: projState.data, lastEdited: Date.now() } : p
+            )
+        }));
+    };
+
+    // CARD ACTIONS
+
+    const updateCurrentProjectData = (updater) => {
+        setCurrentProject(prev => {
+            if (!prev) return null;
+            // DEEP COPY IS CRITICAL HERE
+            const clone = JSON.parse(JSON.stringify(prev));
+            const updated = updater(clone);
+            saveProject(updated); // Sync to global appData
+            return updated;
+        });
+    };
+
+    const createCard = () => {
+        if (!currentProject) return;
+
+        const newIdx = currentProject.data.cards.length;
+
+        const newCard = {
+            name: "New Card " + (newIdx + 1),
+            desc: "Description",
+            rarity: "Common",
+            theme: "DestructiveRed",
+            code: generateCardCode(currentProject.data.strategy, currentProject.data.customTemplate, currentProject.data, { name: "NewCard" + (newIdx + 1) })
+        };
+
+        updateCurrentProjectData(proj => {
+            if (!proj.data.cards) proj.data.cards = [];
+            proj.data.cards.push(newCard);
+            return proj;
+        });
+
+        setCurrentCardIndex(newIdx);
+    };
+
+    const deleteCard = (index) => {
+        if (!currentProject) return;
+        updateCurrentProjectData(proj => {
+            proj.data.cards.splice(index, 1);
+            return proj;
+        });
+        setCurrentCardIndex(Math.max(0, index - 1));
+    };
+
+    const updateCard = (index, field, value) => {
+        if (!currentProject || index < 0) return;
+        updateCurrentProjectData(proj => {
+            if (proj.data.cards[index]) {
+                proj.data.cards[index][field] = value;
+            }
+            return proj;
+        });
+    };
+
+    return (
+        <ProjectContext.Provider value={{
+            appData,
+            currentProject,
+            currentCardIndex,
+            setCurrentCardIndex,
+            createProject,
+            deleteProject,
+            openProject,
+            closeProject,
+            createCard,
+            deleteCard,
+            updateCard,
+            saveSnippet,
+            deleteSnippet,
+            // Data Persistence
+            exportData: () => {
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appData));
+                const downloadAnchorNode = document.createElement('a');
+                downloadAnchorNode.setAttribute("href", dataStr);
+                downloadAnchorNode.setAttribute("download", "rounds-studio-backup_" + Date.now() + ".json");
+                document.body.appendChild(downloadAnchorNode);
+                downloadAnchorNode.click();
+                downloadAnchorNode.remove();
+            },
+            importData: (jsonString) => {
+                try {
+                    const parsed = JSON.parse(jsonString);
+                    if (parsed.projects && parsed.snippets) {
+                        setAppData(parsed);
+                        alert("Data imported successfully!");
+                    } else {
+                        alert("Invalid backup file format.");
+                    }
+                } catch (e) {
+                    console.error(e);
+                    alert("Failed to parse backup file.");
+                }
+            }
+        }}>
+            {children}
+        </ProjectContext.Provider>
+    );
+};
