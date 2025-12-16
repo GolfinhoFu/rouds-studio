@@ -156,6 +156,12 @@ export const ProjectProvider = ({ children }) => {
     const moveSnippet = (snippetId, folderId, strategy) => {
         setAppData(prev => {
             const targetStrat = strategy || 'Vanilla';
+
+            // Defensive check (CodeRabbit)
+            if (!prev.snippets || !Array.isArray(prev.snippets[targetStrat])) {
+                return prev;
+            }
+
             return {
                 ...prev,
                 snippets: {
