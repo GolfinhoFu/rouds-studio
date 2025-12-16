@@ -131,9 +131,8 @@ const DraggableSnippetItem = ({ snippet, onInject, onRequestDelete, onMove, fold
             )}
 
             <div style={{ fontSize: '0.7rem', color: '#888', maxHeight: 40, overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: 'monospace', margin: '5px 0' }}>
-                {(snippet.code || '').substring(0, 50)}...
-            </div>
-            <button type="button" className="toolbox-btn" style={{ marginTop: 5, width: '100%' }} onClick={() => onInject(snippet.code)}>+ Inject (Cursor)</button>
+                {(snippet.code || '').substring(0, 50)}{(snippet.code || '').length > 50 ? '...' : ''}
+            </div>            <button type="button" className="toolbox-btn" style={{ marginTop: 5, width: '100%' }} onClick={() => onInject(snippet.code)}>+ Inject (Cursor)</button>
         </div>
     );
 };
@@ -206,8 +205,8 @@ const DroppableFolderItem = ({ folder, snippets, onRequestDelete, onInject, onRe
     );
 };
 
-const DroppableRootZone = ({ children, isOver }) => {
-    const { setNodeRef } = useDroppable({
+const DroppableRootZone = ({ children }) => {
+    const { setNodeRef, isOver } = useDroppable({
         id: 'folder-ROOT',
         data: { type: 'folder', id: null } // Root has null ID
     });
@@ -238,6 +237,9 @@ const SnippetsManager = ({ onInject }) => {
     const [draftCode, setDraftCode] = useState("");
     const [isCreatingSnippet, setIsCreatingSnippet] = useState(false);
     const [isCreatingFolder, setIsCreatingFolder] = useState(false);
+
+    // Refs for focus management
+    const snippetCodeRef = React.useRef(null);
 
     // Modal State
     const [modalState, setModalState] = useState({ isOpen: false, type: null, id: null });
@@ -398,10 +400,11 @@ const SnippetsManager = ({ onInject }) => {
                                 autoFocus
                                 value={newSnippetName}
                                 onChange={e => setNewSnippetName(e.target.value)}
-                                onKeyDown={e => { if (e.key === 'Enter') e.target.nextElementSibling?.focus(); }}
+                                onKeyDown={e => { if (e.key === 'Enter') snippetCodeRef.current?.focus(); }}
                                 style={{ width: '100%', marginBottom: 5, padding: 5 }}
                             />
                             <textarea
+                                ref={snippetCodeRef}
                                 placeholder="Paste code here..."
                                 value={draftCode}
                                 onChange={e => setDraftCode(e.target.value)}
