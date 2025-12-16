@@ -289,10 +289,11 @@ const SnippetsManager = ({ onInject }) => {
                                 style={{ flex: 1, background: '#4CAF50', opacity: !newFolderName.trim() ? 0.5 : 1 }}
                                 onClick={onSaveFolder}
                                 disabled={!newFolderName.trim()}
+                                type="button"
                             >
                                 Create
                             </button>
-                            <button className="toolbox-btn" style={{ flex: 1 }} onClick={() => setIsCreatingFolder(false)}>Cancel</button>
+                            <button type="button" className="toolbox-btn" style={{ flex: 1 }} onClick={() => setIsCreatingFolder(false)}>Cancel</button>
                         </div>
                     </div>
                 )}
