@@ -118,8 +118,8 @@ const SnippetItem = ({ snippet, onInject, onRequestDelete, onMove, folders }) =>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <strong style={{ color: '#d4d4d4' }}>{snippet.name}</strong>
                 <div style={{ display: 'flex', gap: 5 }}>
-                    <button onClick={() => setIsMoving(!isMoving)} title="Move to folder" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1em' }}>📂</button>
-                    <button onClick={() => onRequestDelete(snippet.id)} style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer', fontSize: '1.2em' }}>&times;</button>
+                    <button type="button" onClick={() => setIsMoving(!isMoving)} title="Move to folder" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1em' }}>📂</button>
+                    <button type="button" onClick={() => onRequestDelete(snippet.id)} style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer', fontSize: '1.2em' }}>&times;</button>
                 </div>
             </div>
 
