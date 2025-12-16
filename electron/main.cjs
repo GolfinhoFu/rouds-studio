@@ -2,6 +2,13 @@ const { app, BrowserWindow } = require('electron');
 const path = require('path');
 const isDev = !app.isPackaged;
 
+/**
+ * Create and configure the main application BrowserWindow and load the app content.
+ *
+ * Creates a 1200×800 window titled "Rounds Studio" with a dark background and context-isolated
+ * renderer (preload set to preload.cjs), hides the menu bar, and loads the development server
+ * URL when in development or the built index.html in production. Opens DevTools in development.
+ */
 function createWindow() {
     const mainWindow = new BrowserWindow({
         width: 1200,
