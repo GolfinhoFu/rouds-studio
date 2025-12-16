@@ -6,6 +6,7 @@ const Launcher = () => {
     const [isModalOpen, setModalOpen] = useState(false);
     const [newProjName, setNewProjName] = useState("");
     const [newProjStrategy, setNewProjStrategy] = useState("Vanilla");
+    const [searchTerm, setSearchTerm] = useState("");
 
     const handleCreate = () => {
         if (!newProjName) return;
@@ -14,12 +15,30 @@ const Launcher = () => {
         setNewProjName("");
     };
 
+    const filteredProjects = React.useMemo(() => {
+        const projects = appData?.projects || [];
+        return projects
+            .filter(p => (p.name || '').toLowerCase().includes(searchTerm.toLowerCase()))
+            .sort((a, b) => (b.lastEdited || 0) - (a.lastEdited || 0));
+    }, [appData?.projects, searchTerm]);
+
     return (
         <div className="launcher-screen">
             <div className="launcher-content">
                 <div className="launcher-header">
                     <h1>Rounds <span>Studio</span></h1>
                     <p>Select a Deck to start modding</p>
+
+                    <div className="search-bar-container">
+                        <input
+                            type="text"
+                            className="search-input"
+                            placeholder="🔍 Search projects..."
+                            aria-label="Search projects"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
                     <div style={{ marginTop: 15, display: 'flex', gap: 10, justifyContent: 'center' }}>
                         <button className="toolbox-btn" style={{ width: 'auto', display: 'inline-block' }} onClick={exportData}>💾 Backup Data</button>
                         <button className="toolbox-btn" style={{ width: 'auto', display: 'inline-block' }} onClick={() => document.getElementById('restore-input').click()}>📂 Restore Data</button>
@@ -45,7 +64,7 @@ const Launcher = () => {
                         <span>+ Create New Deck</span>
                     </div>
 
-                    {[...appData.projects].sort((a, b) => b.lastEdited - a.lastEdited).map(p => (
+                    {filteredProjects.map(p => (
                         <div key={p.id} className="project-card" role="button" tabIndex={0} onClick={() => openProject(p.id)}>
                             <div>
                                 <h3>{p.name}</h3>
