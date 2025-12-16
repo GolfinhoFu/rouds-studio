@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect } from 'react';
 import { generateCardCode, TemplateStrategies, getDefaultVanillaTemplate } from '../utils/templates';
+import { DEFAULT_PRESETS, DEFAULT_FOLDERS } from '../utils/defaultPresets';
 
 export const ProjectContext = createContext();
 
@@ -19,11 +20,21 @@ export const ProjectProvider = ({ children }) => {
         const stored = localStorage.getItem(STORAGE_KEY);
         if (stored) {
             const parsed = JSON.parse(stored);
-            // Migration for existing data without snippets
+
+            // Migration: Ensure snippets object exists
             if (!parsed.snippets) parsed.snippets = { ModsPlus: [], Vanilla: [], Custom: [] };
-            // Migration for snippetFolders
+
+            // Migration: Ensure snippetFolders object exists
             if (!parsed.snippetFolders) parsed.snippetFolders = { ModsPlus: [], Vanilla: [], Custom: [] };
+
             setAppData(parsed);
+        } else {
+            // First time load: Inject Defaults
+            setAppData(prev => ({
+                ...prev,
+                snippets: { ...prev.snippets, Vanilla: [...DEFAULT_PRESETS.Vanilla] },
+                snippetFolders: { ...prev.snippetFolders, Vanilla: [...DEFAULT_FOLDERS.Vanilla] }
+            }));
         }
     }, []);
 
@@ -139,7 +150,7 @@ export const ProjectProvider = ({ children }) => {
             const list = prev.snippets[targetStrat] || [];
 
             const newSnippet = { id: Date.now(), name, code, folderId };
-            const newSnippet = { id: Date.now(), name, code, folderId };
+
             return {
                 ...prev,
                 snippets: {
