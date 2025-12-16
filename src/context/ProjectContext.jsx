@@ -74,7 +74,7 @@ const createProject = (name, strategy) => {
     };
     setAppData(prev => ({ ...prev, projects: [...prev.projects, newProj] }));
     setCurrentProject(JSON.parse(JSON.stringify(newProj)));
-    setCurrentCardIndex(newProj.data.cards.length > 0 ? 0 : -1);
+    setCurrentCardIndex(-1);
 };
 const deleteProject = (id) => {
     setAppData(prev => ({
@@ -165,7 +165,9 @@ const deleteSnippetFolder = (folderId, strategy) => {
 };
 
 const saveSnippet = (name, code, strategy, folderId = null) => {
-    if (!name || !name.trim()) {
+    const trimmedName = name ? name.trim() : "";
+
+    if (!trimmedName) {
         console.error('saveSnippet: name is required');
         return;
     }
@@ -177,7 +179,7 @@ const saveSnippet = (name, code, strategy, folderId = null) => {
         const targetStrat = strategy || 'Vanilla';
         const list = prev.snippets[targetStrat] || [];
 
-        const newSnippet = { id: Date.now().toString(), name, code, folderId };
+        const newSnippet = { id: Date.now().toString(), name: trimmedName, code, folderId };
 
         return {
             ...prev,

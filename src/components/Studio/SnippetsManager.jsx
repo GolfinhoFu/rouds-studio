@@ -134,7 +134,7 @@ const DraggableSnippetItem = ({ snippet, onInject, onRequestDelete, onMove, fold
 
             <div style={{ fontSize: '0.7rem', color: '#888', maxHeight: 40, overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: 'monospace', margin: '5px 0' }}>
                 {code.substring(0, 50)}{code.length > 50 ? '...' : ''}
-            </div>            <button type="button" className="toolbox-btn" style={{ marginTop: 5, width: '100%' }} onClick={() => onInject(snippet.code)}>+ Inject (Cursor)</button>
+            </div>            <button type="button" className="toolbox-btn" style={{ marginTop: 5, width: '100%' }} onClick={() => onInject(code)}>+ Inject (Cursor)</button>
         </div>
     );
 };
