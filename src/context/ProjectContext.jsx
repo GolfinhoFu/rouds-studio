@@ -127,7 +127,7 @@ export const ProjectProvider = ({ children }) => {
                 },
                 snippetFolders: {
                     ...prev.snippetFolders,
-                    [targetStrat]: prev.snippetFolders[targetStrat].filter(f => f.id !== folderId)
+                    [targetStrat]: (prev.snippetFolders[targetStrat] || []).filter(f => f.id !== folderId)
                 }
             };
         });
