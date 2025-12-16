@@ -54,6 +54,7 @@ const SortableProjectCard = ({ project, onClick, onDelete }) => {
             </div>
             <span>{new Date(project.lastEdited).toLocaleDateString()}</span>
             <button
+                type="button"
                 className="delete-project-btn"
                 onPointerDown={(e) => e.stopPropagation()} // Prevent drag start
                 onClick={(e) => {
