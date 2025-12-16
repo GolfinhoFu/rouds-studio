@@ -71,7 +71,10 @@ const FolderItem = ({ folder, snippets, onRequestDelete, onInject, onRequestDele
                     justifyContent: 'space-between',
                     userSelect: 'none'
                 }}
+                role="button"
+                tabIndex={0}
                 onClick={() => setExpanded(!expanded)}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(!expanded); }}}
             >
                 <div style={{ display: 'flex', alignItems: 'center' }}>
                     <FolderIcon expanded={expanded} />
@@ -82,6 +85,7 @@ const FolderItem = ({ folder, snippets, onRequestDelete, onInject, onRequestDele
                     onClick={(e) => { e.stopPropagation(); onRequestDelete(folder.id); }}
                     style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer', fontSize: '1.2em' }}
                     title="Delete Folder"
+                    type="button"
                 >
                     &times;
                 </button>
