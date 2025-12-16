@@ -1,25 +1,146 @@
 import React, { useContext, useState } from 'react';
 import { ProjectContext } from '../../context/ProjectContext';
 
+const FolderIcon = ({ expanded }) => (
+    <span style={{ marginRight: 5, display: 'inline-block', width: 12 }}>
+        {expanded ? '📂' : '📁'}
+    </span>
+);
+
+const FolderItem = ({ folder, snippets, onDelete, onInject, onDeleteSnippet, onMoveSnippet, allFolders }) => {
+    const [expanded, setExpanded] = useState(false);
+
+    return (
+        <div className="snippet-folder" style={{ marginBottom: 5 }}>
+            <div
+                className="folder-header"
+                style={{
+                    background: '#333',
+                    padding: '8px 10px',
+                    borderRadius: 4,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    userSelect: 'none'
+                }}
+                onClick={() => setExpanded(!expanded)}
+            >
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <FolderIcon expanded={expanded} />
+                    <span style={{ fontWeight: 'bold', color: '#fff' }}>{folder.name}</span>
+                    <span style={{ marginLeft: 8, fontSize: '0.8em', color: '#888' }}>({snippets.length})</span>
+                </div>
+                <button
+                    onClick={(e) => { e.stopPropagation(); if (confirm('Delete folder?')) onDelete(folder.id); }}
+                    style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer', fontSize: '1.2em' }}
+                >
+                    &times;
+                </button>
+            </div>
+
+            {expanded && (
+                <div className="folder-content" style={{ paddingLeft: 10, marginTop: 5, borderLeft: '2px solid #333' }}>
+                    {snippets.length === 0 && <div style={{ color: '#666', fontSize: '0.8em', padding: 5 }}>Empty folder</div>}
+                    {snippets.map(s => (
+                        <SnippetItem
+                            key={s.id}
+                            snippet={s}
+                            onInject={onInject}
+                            onDelete={onDeleteSnippet}
+                            onMove={onMoveSnippet}
+                            folders={allFolders}
+                        />
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
+
+const SnippetItem = ({ snippet, onInject, onDelete, onMove, folders }) => {
+    const [isMoving, setIsMoving] = useState(false);
+
+    return (
+        <div className="snippet-item" style={{ background: '#222', padding: 8, marginBottom: 8, borderRadius: 4 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <strong style={{ color: '#d4d4d4' }}>{snippet.name}</strong>
+                <div style={{ display: 'flex', gap: 5 }}>
+                    <button onClick={() => setIsMoving(!isMoving)} title="Move to folder" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1em' }}>📂</button>
+                    <button onClick={() => onDelete(snippet.id)} style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer', fontSize: '1.2em' }}>&times;</button>
+                </div>
+            </div>
+
+            {isMoving && (
+                <div style={{ margin: '5px 0', padding: 5, background: '#111', borderRadius: 4 }}>
+                    <select
+                        style={{ width: '100%', marginBottom: 5 }}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            onMove(snippet.id, val === 'ROOT' ? null : Number(val));
+                            setIsMoving(false);
+                        }}
+                        defaultValue={snippet.folderId || 'ROOT'}
+                    >
+                        <option value="ROOT">Uncategorized (Root)</option>
+                        {folders.map(f => (
+                            <option key={f.id} value={f.id}>{f.name}</option>
+                        ))}
+                    </select>
+                </div>
+            )}
+
+            <div style={{ fontSize: '0.7rem', color: '#888', maxHeight: 40, overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: 'monospace', margin: '5px 0' }}>
+                {snippet.code.substring(0, 50)}...
+            </div>
+            <button className="toolbox-btn" style={{ marginTop: 5, width: '100%' }} onClick={() => onInject(snippet.code)}>+ Inject (Cursor)</button>
+        </div>
+    );
+};
+
 const SnippetsManager = ({ onInject }) => {
-    const { appData, currentProject, saveSnippet, deleteSnippet } = useContext(ProjectContext);
+    const {
+        appData,
+        currentProject,
+        saveSnippet,
+        deleteSnippet,
+        createSnippetFolder,
+        deleteSnippetFolder,
+        moveSnippet
+    } = useContext(ProjectContext);
+
     const [newSnippetName, setNewSnippetName] = useState("");
+    const [newFolderName, setNewFolderName] = useState("");
+
+    // UI State
+    const [draftCode, setDraftCode] = useState("");
+    const [isCreatingSnippet, setIsCreatingSnippet] = useState(false);
+    const [isCreatingFolder, setIsCreatingFolder] = useState(false);
 
     if (!currentProject) return null;
 
     const strategy = currentProject.data.strategy || 'Vanilla';
     const snippets = (appData.snippets && appData.snippets[strategy]) ? appData.snippets[strategy] : [];
+    const folders = (appData.snippetFolders && appData.snippetFolders[strategy]) ? appData.snippetFolders[strategy] : [];
 
-    // Local draft state
-    const [draftCode, setDraftCode] = useState("");
-    const [isCreating, setIsCreating] = useState(false);
+    // Helper to filter
+    const getSnippetsInFolder = (folderId) => snippets.filter(s => s.folderId === folderId);
+    const rootSnippets = snippets.filter(s => !s.folderId || !folders.find(f => f.id === s.folderId));
 
-    const onSave = () => {
+    const onSaveSnippet = () => {
         if (newSnippetName && draftCode) {
             saveSnippet(newSnippetName, draftCode, strategy);
             setNewSnippetName("");
             setDraftCode("");
-            setIsCreating(false);
+            setIsCreatingSnippet(false);
+        }
+    };
+
+    const onSaveFolder = () => {
+        if (newFolderName) {
+            createSnippetFolder(newFolderName, strategy);
+            setNewFolderName("");
+            setIsCreatingFolder(false);
         }
     };
 
@@ -32,50 +153,92 @@ const SnippetsManager = ({ onInject }) => {
     };
 
     return (
-        <div className="sidebar" style={{ borderLeft: '1px solid #333', marginLeft: 0 }}>
-            <h2>Global Presets ({strategy})</h2>
+        <div className="sidebar" style={{ borderLeft: '1px solid #333', marginLeft: 0, display: 'flex', flexDirection: 'column', height: '100%' }}>
+            <h2 style={{ padding: '0 10px', paddingTop: 10 }}>Global Presets ({strategy})</h2>
 
-            <div className="snippet-list">
-                {snippets.length === 0 && <div style={{ color: '#666', fontStyle: 'italic', padding: 10 }}>No presets for {strategy}</div>}
-
-                {snippets.map(s => (
-                    <div key={s.id} className="snippet-item" style={{ background: '#222', padding: 8, marginBottom: 8, borderRadius: 4 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <strong style={{ color: '#d4d4d4' }}>{s.name}</strong>
-                            <button onClick={() => deleteSnippet(s.id, strategy)} style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer' }}>&times;</button>
-                        </div>
-                        <div style={{ fontSize: '0.7rem', color: '#888', maxHeight: 40, overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: 'monospace', margin: '5px 0' }}>
-                            {s.code.substring(0, 50)}...
-                        </div>
-                        <button className="toolbox-btn" style={{ marginTop: 5 }} onClick={() => handleInjectClick(s.code)}>+ Inject (Cursor)</button>
-                    </div>
+            <div className="snippet-list-container" style={{ flex: 1, overflowY: 'auto', padding: 10 }}>
+                {/* Folders */}
+                {folders.map(f => (
+                    <FolderItem
+                        key={f.id}
+                        folder={f}
+                        snippets={getSnippetsInFolder(f.id)}
+                        onDelete={(id) => deleteSnippetFolder(id, strategy)}
+                        onInject={handleInjectClick}
+                        onDeleteSnippet={(id) => deleteSnippet(id, strategy)}
+                        onMoveSnippet={(sid, fid) => moveSnippet(sid, fid, strategy)}
+                        allFolders={folders}
+                    />
                 ))}
+
+                {/* Root Snippets */}
+                {rootSnippets.length > 0 && <div style={{ marginTop: 10, color: '#888', fontSize: '0.8rem', fontWeight: 'bold', marginBottom: 5 }}>Uncategorized</div>}
+
+                {rootSnippets.map(s => (
+                    <SnippetItem
+                        key={s.id}
+                        snippet={s}
+                        onInject={handleInjectClick}
+                        onDelete={(id) => deleteSnippet(id, strategy)}
+                        onMove={(sid, fid) => moveSnippet(sid, fid, strategy)}
+                        folders={folders}
+                    />
+                ))}
+
+                {snippets.length === 0 && folders.length === 0 && (
+                    <div style={{ color: '#666', fontStyle: 'italic', padding: 10, textAlign: 'center' }}>
+                        No presets or folders.
+                    </div>
+                )}
             </div>
 
-            <hr style={{ borderColor: '#444', margin: '10px 0' }} />
-
-            {!isCreating ? (
-                <button className="action-btn" onClick={() => setIsCreating(true)}>+ New Preset</button>
-            ) : (
-                <div className="creation-form" style={{ background: '#2a2a2a', padding: 10, borderRadius: 6 }}>
-                    <input
-                        placeholder="Preset Name"
-                        value={newSnippetName}
-                        onChange={e => setNewSnippetName(e.target.value)}
-                        style={{ width: '100%', marginBottom: 5, padding: 5 }}
-                    />
-                    <textarea
-                        placeholder="Paste code here..."
-                        value={draftCode}
-                        onChange={e => setDraftCode(e.target.value)}
-                        style={{ width: '100%', height: 60, marginBottom: 5, background: '#1e1e1e', color: '#fff', border: '1px solid #444', fontFamily: 'monospace', fontSize: '0.8rem' }}
-                    />
+            {/* Action Bar */}
+            <div className="actions-bar" style={{ padding: 10, borderTop: '1px solid #333' }}>
+                {!isCreatingSnippet && !isCreatingFolder && (
                     <div style={{ display: 'flex', gap: 5 }}>
-                        <button className="action-btn" style={{ flex: 1, background: '#4CAF50' }} onClick={onSave}>Save</button>
-                        <button className="action-btn" style={{ flex: 1, background: '#555' }} onClick={() => setIsCreating(false)}>Cancel</button>
+                        <button className="action-btn" style={{ flex: 1 }} onClick={() => setIsCreatingSnippet(true)}>+ Snippet</button>
+                        <button className="toolbox-btn" style={{ flex: 1 }} onClick={() => setIsCreatingFolder(true)}>+ Folder</button>
                     </div>
-                </div>
-            )}
+                )}
+
+                {isCreatingFolder && (
+                    <div className="creation-form" style={{ background: '#2a2a2a', padding: 10, borderRadius: 6 }}>
+                        <input
+                            placeholder="Folder Name"
+                            autoFocus
+                            value={newFolderName}
+                            onChange={e => setNewFolderName(e.target.value)}
+                            style={{ width: '100%', marginBottom: 5, padding: 5 }}
+                        />
+                        <div style={{ display: 'flex', gap: 5 }}>
+                            <button className="action-btn" style={{ flex: 1, background: '#4CAF50' }} onClick={onSaveFolder}>Create</button>
+                            <button className="toolbox-btn" style={{ flex: 1 }} onClick={() => setIsCreatingFolder(false)}>Cancel</button>
+                        </div>
+                    </div>
+                )}
+
+                {isCreatingSnippet && (
+                    <div className="creation-form" style={{ background: '#2a2a2a', padding: 10, borderRadius: 6 }}>
+                        <input
+                            placeholder="Snippet Name"
+                            autoFocus
+                            value={newSnippetName}
+                            onChange={e => setNewSnippetName(e.target.value)}
+                            style={{ width: '100%', marginBottom: 5, padding: 5 }}
+                        />
+                        <textarea
+                            placeholder="Paste code here..."
+                            value={draftCode}
+                            onChange={e => setDraftCode(e.target.value)}
+                            style={{ width: '100%', height: 60, marginBottom: 5, background: '#1e1e1e', color: '#fff', border: '1px solid #444', fontFamily: 'monospace', fontSize: '0.8rem' }}
+                        />
+                        <div style={{ display: 'flex', gap: 5 }}>
+                            <button className="action-btn" style={{ flex: 1, background: '#4CAF50' }} onClick={onSaveSnippet}>Save</button>
+                            <button className="toolbox-btn" style={{ flex: 1 }} onClick={() => setIsCreatingSnippet(false)}>Cancel</button>
+                        </div>
+                    </div>
+                )}
+            </div>
         </div>
     );
 };
