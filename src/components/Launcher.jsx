@@ -98,6 +98,9 @@ const Launcher = () => {
             const oldIndex = appData.projects.findIndex((p) => p.id === active.id);
             const newIndex = appData.projects.findIndex((p) => p.id === over.id);
 
+            // Guard against invalid indices
+            if (oldIndex === -1 || newIndex === -1) return;
+
             const newOrder = arrayMove(appData.projects, oldIndex, newIndex);
             reorderProjects(newOrder);
         }
