@@ -138,10 +138,7 @@ export const ProjectProvider = ({ children }) => {
             const targetStrat = strategy || 'Vanilla';
             const list = prev.snippets[targetStrat] || [];
 
-            // Check if updating existing (by name? No, simpler to just add new for now or update if ID exists - logic below was simple add)
-            // The previous logic was: const newSnippet = { id: Date.now(), name, code };
-            // Let's improve it to allow updating if we pass an ID, but for now stick to creating.
-
+            const newSnippet = { id: Date.now(), name, code, folderId };
             const newSnippet = { id: Date.now(), name, code, folderId };
             return {
                 ...prev,
