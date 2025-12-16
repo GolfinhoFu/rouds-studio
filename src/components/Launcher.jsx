@@ -187,13 +187,26 @@ const Launcher = () => {
                     ) : (
                         // Render without DnD when searching
                         displayedProjects.map(p => (
-                            <div key={p.id} className="project-card" role="button" onClick={() => openProject(p.id)}>
+                            <div
+                                key={p.id}
+                                className="project-card"
+                                role="button"
+                                tabIndex={0}
+                                onClick={() => openProject(p.id)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                        e.preventDefault();
+                                        openProject(p.id);
+                                    }
+                                }}
+                            >
                                 <div>
                                     <h3>{p.name}</h3>
                                     <span>{p.data.cards ? p.data.cards.length : 0} Cards • {p.data.strategy}</span>
                                 </div>
                                 <span>{new Date(p.lastEdited).toLocaleDateString()}</span>
                                 <button
+                                    type="button"
                                     className="delete-project-btn"
                                     onClick={(e) => { e.stopPropagation(); if (confirm('Delete?')) deleteProject(p.id); }}
                                 >
