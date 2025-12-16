@@ -331,7 +331,7 @@ const SnippetsManager = ({ onInject }) => {
             {/* Confirmation Modal */}
             <ConfirmationModal
                 isOpen={modalState.isOpen}
-                message={modalState.type === 'FOLDER' ? "Delete entire folder and its contents?" : "Delete this snippet?"}
+                message={modalState.type === 'FOLDER' ? "Delete this folder? Snippets inside will be moved to Uncategorized." : "Delete this snippet?"}
                 onConfirm={handleConfirmDelete}
                 onCancel={() => setModalState({ isOpen: false, type: null, id: null })}
             />
