@@ -130,7 +130,7 @@ const SnippetItem = ({ snippet, onInject, onRequestDelete, onMove, folders }) =>
                         onChange={(e) => {
                             const val = e.target.value;
                             // Convert ROOT to explicit null
-                            onMove(snippet.id, val === 'ROOT' ? null : Number(val));
+                            onMove(snippet.id, val === 'ROOT' ? null : val);
                             setIsMoving(false);
                         }}
                         defaultValue={snippet.folderId || 'ROOT'}
