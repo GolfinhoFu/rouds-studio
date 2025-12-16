@@ -146,7 +146,7 @@ const SnippetItem = ({ snippet, onInject, onRequestDelete, onMove, folders }) =>
             <div style={{ fontSize: '0.7rem', color: '#888', maxHeight: 40, overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: 'monospace', margin: '5px 0' }}>
                 {(snippet.code || '').substring(0, 50)}...
             </div>
-            <button className="toolbox-btn" style={{ marginTop: 5, width: '100%' }} onClick={() => onInject(snippet.code)}>+ Inject (Cursor)</button>
+            <button type="button" className="toolbox-btn" style={{ marginTop: 5, width: '100%' }} onClick={() => onInject(snippet.code)}>+ Inject (Cursor)</button>
         </div>
     );
 };
