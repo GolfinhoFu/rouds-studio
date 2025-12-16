@@ -119,7 +119,7 @@ const DraggableSnippetItem = ({ snippet, onInject, onRequestDelete, onMove, fold
                         style={{ width: '100%', marginBottom: 5 }}
                         onChange={(e) => {
                             const val = e.target.value;
-                            onMove(snippet.id, val === 'ROOT' ? null : Number(val));
+                            onMove(snippet.id, val === 'ROOT' ? null : val);
                             setIsMoving(false);
                         }}
                         defaultValue={snippet.folderId || 'ROOT'}
