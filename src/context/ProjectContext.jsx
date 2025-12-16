@@ -55,6 +55,33 @@ export const ProjectProvider = ({ children }) => {
         }
     };
 
+    const reorderProjects = (newProjectsList) => {
+        // Validate input
+        if (!Array.isArray(newProjectsList)) {
+            console.error('reorderProjects: newProjectsList must be an array');
+            return;
+        }
+
+        // Validate project structure
+        const isValid = newProjectsList.every(p => p && p.id && p.name && p.data);
+        if (!isValid) {
+            console.error('reorderProjects: Invalid project structure in newProjectsList');
+            return;
+        }
+
+        // Check if currentProject is still in the new list
+        if (currentProject) {
+            const stillExists = newProjectsList.some(p => p.id === currentProject.id);
+            if (!stillExists) {
+                closeProject();
+            }
+        }
+
+        setAppData(prev => ({
+            ...prev,
+            projects: newProjectsList
+        }));
+    };
     // SNIPPET ACTIONS
     const saveSnippet = (name, code, strategy) => {
         setAppData(prev => {
@@ -185,6 +212,7 @@ export const ProjectProvider = ({ children }) => {
             setCurrentCardIndex,
             createProject,
             deleteProject,
+            reorderProjects,
             openProject,
             closeProject,
             createCard,
