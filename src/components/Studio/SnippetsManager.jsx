@@ -256,7 +256,7 @@ const SnippetsManager = ({ onInject }) => {
     const handleDragEnd = (event) => {
         const { active, over } = event;
 
-        if (!over) return;
+        if (!over || !active) return;
 
         const activeIdStr = String(active.id);
         const overIdStr = String(over.id);
