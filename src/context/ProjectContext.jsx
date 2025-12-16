@@ -69,6 +69,14 @@ export const ProjectProvider = ({ children }) => {
             return;
         }
 
+        // Validate same set of projects (prevent accidental data loss)
+        const currentIds = new Set(appData.projects.map(p => p.id));
+        const newIds = new Set(newProjectsList.map(p => p.id));
+        if (currentIds.size !== newIds.size || ![...currentIds].every(id => newIds.has(id))) {
+            console.error('reorderProjects: Project IDs mismatch - refusing to update');
+            return;
+        }
+
         // Check if currentProject is still in the new list
         if (currentProject) {
             const stillExists = newProjectsList.some(p => p.id === currentProject.id);
