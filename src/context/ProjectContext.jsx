@@ -57,11 +57,8 @@ export const ProjectProvider = ({ children }) => {
 
 // SAVE
 useEffect(() => {
-    if (appData.projects.length > 0 || appData.snippets) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
-    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
 }, [appData]);
-
 const createProject = (name, strategy) => {
     const newProj = {
         id: Date.now().toString(),
@@ -76,9 +73,9 @@ const createProject = (name, strategy) => {
         }
     };
     setAppData(prev => ({ ...prev, projects: [...prev.projects, newProj] }));
-    openProject(newProj.id);
+    setCurrentProject(JSON.parse(JSON.stringify(newProj)));
+    setCurrentCardIndex(newProj.data.cards.length > 0 ? 0 : -1);
 };
-
 const deleteProject = (id) => {
     setAppData(prev => ({
         ...prev,
@@ -126,10 +123,16 @@ const reorderProjects = (newProjectsList) => {
 };
 // SNIPPET ACTIONS
 const createSnippetFolder = (name, strategy) => {
+    const trimmedName = name ? name.trim() : "";
+    if (!trimmedName) {
+        console.error("createSnippetFolder: name is required");
+        return;
+    }
+
     setAppData(prev => {
         const targetStrat = strategy || 'Vanilla';
         const list = prev.snippetFolders[targetStrat] || [];
-        const newFolder = { id: Date.now(), name };
+        const newFolder = { id: Date.now().toString(), name: trimmedName };
         return {
             ...prev,
             snippetFolders: {
@@ -162,11 +165,19 @@ const deleteSnippetFolder = (folderId, strategy) => {
 };
 
 const saveSnippet = (name, code, strategy, folderId = null) => {
+    if (!name || !name.trim()) {
+        console.error('saveSnippet: name is required');
+        return;
+    }
+    if (code === undefined || code === null) {
+        console.error('saveSnippet: code is required');
+        return;
+    }
     setAppData(prev => {
         const targetStrat = strategy || 'Vanilla';
         const list = prev.snippets[targetStrat] || [];
 
-        const newSnippet = { id: Date.now(), name, code, folderId };
+        const newSnippet = { id: Date.now().toString(), name, code, folderId };
 
         return {
             ...prev,
@@ -177,7 +188,6 @@ const saveSnippet = (name, code, strategy, folderId = null) => {
         };
     });
 };
-
 const moveSnippet = (snippetId, folderId, strategy) => {
     setAppData(prev => {
         const targetStrat = strategy || 'Vanilla';
@@ -202,11 +212,13 @@ const moveSnippet = (snippetId, folderId, strategy) => {
 const deleteSnippet = (id, strategy) => {
     setAppData(prev => {
         const targetStrat = strategy || 'Vanilla';
+        const existing = Array.isArray(prev.snippets?.[targetStrat]) ? prev.snippets[targetStrat] : [];
+
         return {
             ...prev,
             snippets: {
                 ...prev.snippets,
-                [targetStrat]: prev.snippets[targetStrat].filter(s => s.id !== id)
+                [targetStrat]: existing.filter(s => s.id !== id)
             }
         };
     });
@@ -290,9 +302,9 @@ const deleteCard = (index) => {
         proj.data.cards.splice(index, 1);
         return proj;
     });
-    setCurrentCardIndex(Math.max(0, index - 1));
+    const newLength = currentProject.data.cards.length - 1;
+    setCurrentCardIndex(newLength === 0 ? -1 : Math.max(0, index - 1));
 };
-
 const updateCard = (index, field, value) => {
     if (!currentProject || index < 0) return;
     updateCurrentProjectData(proj => {
@@ -335,11 +347,11 @@ return (
         importData: (jsonString) => {
             try {
                 const parsed = JSON.parse(jsonString);
-                if (parsed.projects && parsed.snippets) {
+                if (parsed.projects && parsed.snippets && parsed.snippetFolders) {
                     setAppData(parsed);
                     alert("Data imported successfully!");
                 } else {
-                    alert("Invalid backup file format.");
+                    alert("Invalid backup file format. Missing required properties: projects, snippets, or snippetFolders.");
                 }
             } catch (e) {
                 console.error(e);

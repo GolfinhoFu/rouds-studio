@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useRef } from 'react';
 import { ProjectContext } from '../../context/ProjectContext';
 import { DndContext, useDraggable, useDroppable } from '@dnd-kit/core';
 
@@ -83,6 +83,8 @@ const DraggableSnippetItem = ({ snippet, onInject, onRequestDelete, onMove, fold
     // We keep the internal move logic (dropdown) as fallback/alternative
     const [isMoving, setIsMoving] = useState(false);
 
+    const code = snippet.code || '';
+
     const style = transform ? {
         transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
         zIndex: 999,
@@ -131,7 +133,7 @@ const DraggableSnippetItem = ({ snippet, onInject, onRequestDelete, onMove, fold
             )}
 
             <div style={{ fontSize: '0.7rem', color: '#888', maxHeight: 40, overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: 'monospace', margin: '5px 0' }}>
-                {(snippet.code || '').substring(0, 50)}{(snippet.code || '').length > 50 ? '...' : ''}
+                {code.substring(0, 50)}{code.length > 50 ? '...' : ''}
             </div>            <button type="button" className="toolbox-btn" style={{ marginTop: 5, width: '100%' }} onClick={() => onInject(snippet.code)}>+ Inject (Cursor)</button>
         </div>
     );
@@ -239,7 +241,7 @@ const SnippetsManager = ({ onInject }) => {
     const [isCreatingFolder, setIsCreatingFolder] = useState(false);
 
     // Refs for focus management
-    const snippetCodeRef = React.useRef(null);
+    const snippetCodeRef = useRef(null);
 
     // Modal State
     const [modalState, setModalState] = useState({ isOpen: false, type: null, id: null });
