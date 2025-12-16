@@ -1,13 +1,60 @@
 import React, { useContext, useState } from 'react';
 import { ProjectContext } from '../../context/ProjectContext';
 
+// --- Components ---
+
+const ConfirmationModal = ({ isOpen, message, onConfirm, onCancel }) => {
+    if (!isOpen) return null;
+
+    return (
+        <div style={{
+            position: 'fixed',
+            top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000
+        }} onClick={onCancel}>
+            <div style={{
+                backgroundColor: '#2a2a2a',
+                padding: '20px',
+                borderRadius: '8px',
+                width: '300px',
+                boxShadow: '0 4px 6px rgba(0,0,0,0.3)',
+                border: '1px solid #444'
+            }} onClick={e => e.stopPropagation()}>
+                <h3 style={{ marginTop: 0, color: '#fff' }}>Confirm Action</h3>
+                <p style={{ color: '#ccc' }}>{message}</p>
+                <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
+                    <button
+                        className="toolbox-btn"
+                        onClick={onCancel}
+                        style={{ padding: '8px 16px' }}
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        className="action-btn"
+                        style={{ background: '#e53935', padding: '8px 16px' }}
+                        onClick={onConfirm}
+                        autoFocus
+                    >
+                        Confirm
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const FolderIcon = ({ expanded }) => (
     <span style={{ marginRight: 5, display: 'inline-block', width: 12 }}>
         {expanded ? '📂' : '📁'}
     </span>
 );
 
-const FolderItem = ({ folder, snippets, onDelete, onInject, onDeleteSnippet, onMoveSnippet, allFolders }) => {
+const FolderItem = ({ folder, snippets, onRequestDelete, onInject, onRequestDeleteSnippet, onMoveSnippet, allFolders }) => {
     const [expanded, setExpanded] = useState(false);
 
     return (
@@ -32,8 +79,9 @@ const FolderItem = ({ folder, snippets, onDelete, onInject, onDeleteSnippet, onM
                     <span style={{ marginLeft: 8, fontSize: '0.8em', color: '#888' }}>({snippets.length})</span>
                 </div>
                 <button
-                    onClick={(e) => { e.stopPropagation(); if (confirm('Delete folder?')) onDelete(folder.id); }}
+                    onClick={(e) => { e.stopPropagation(); onRequestDelete(folder.id); }}
                     style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer', fontSize: '1.2em' }}
+                    title="Delete Folder"
                 >
                     &times;
                 </button>
@@ -47,7 +95,7 @@ const FolderItem = ({ folder, snippets, onDelete, onInject, onDeleteSnippet, onM
                             key={s.id}
                             snippet={s}
                             onInject={onInject}
-                            onDelete={onDeleteSnippet}
+                            onRequestDelete={onRequestDeleteSnippet}
                             onMove={onMoveSnippet}
                             folders={allFolders}
                         />
@@ -58,7 +106,7 @@ const FolderItem = ({ folder, snippets, onDelete, onInject, onDeleteSnippet, onM
     );
 };
 
-const SnippetItem = ({ snippet, onInject, onDelete, onMove, folders }) => {
+const SnippetItem = ({ snippet, onInject, onRequestDelete, onMove, folders }) => {
     const [isMoving, setIsMoving] = useState(false);
 
     return (
@@ -67,7 +115,7 @@ const SnippetItem = ({ snippet, onInject, onDelete, onMove, folders }) => {
                 <strong style={{ color: '#d4d4d4' }}>{snippet.name}</strong>
                 <div style={{ display: 'flex', gap: 5 }}>
                     <button onClick={() => setIsMoving(!isMoving)} title="Move to folder" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1em' }}>📂</button>
-                    <button onClick={() => onDelete(snippet.id)} style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer', fontSize: '1.2em' }}>&times;</button>
+                    <button onClick={() => onRequestDelete(snippet.id)} style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer', fontSize: '1.2em' }}>&times;</button>
                 </div>
             </div>
 
@@ -77,6 +125,7 @@ const SnippetItem = ({ snippet, onInject, onDelete, onMove, folders }) => {
                         style={{ width: '100%', marginBottom: 5 }}
                         onChange={(e) => {
                             const val = e.target.value;
+                            // Convert ROOT to explicit null
                             onMove(snippet.id, val === 'ROOT' ? null : Number(val));
                             setIsMoving(false);
                         }}
@@ -91,7 +140,7 @@ const SnippetItem = ({ snippet, onInject, onDelete, onMove, folders }) => {
             )}
 
             <div style={{ fontSize: '0.7rem', color: '#888', maxHeight: 40, overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: 'monospace', margin: '5px 0' }}>
-                {snippet.code.substring(0, 50)}...
+                {(snippet.code || '').substring(0, 50)}...
             </div>
             <button className="toolbox-btn" style={{ marginTop: 5, width: '100%' }} onClick={() => onInject(snippet.code)}>+ Inject (Cursor)</button>
         </div>
@@ -109,13 +158,15 @@ const SnippetsManager = ({ onInject }) => {
         moveSnippet
     } = useContext(ProjectContext);
 
+    // Form State
     const [newSnippetName, setNewSnippetName] = useState("");
     const [newFolderName, setNewFolderName] = useState("");
-
-    // UI State
     const [draftCode, setDraftCode] = useState("");
     const [isCreatingSnippet, setIsCreatingSnippet] = useState(false);
     const [isCreatingFolder, setIsCreatingFolder] = useState(false);
+
+    // Modal State
+    const [modalState, setModalState] = useState({ isOpen: false, type: null, id: null });
 
     if (!currentProject) return null;
 
@@ -128,8 +179,11 @@ const SnippetsManager = ({ onInject }) => {
     const rootSnippets = snippets.filter(s => !s.folderId || !folders.find(f => f.id === s.folderId));
 
     const onSaveSnippet = () => {
-        if (newSnippetName && draftCode) {
-            saveSnippet(newSnippetName, draftCode, strategy);
+        const name = newSnippetName.trim();
+        const code = draftCode.trim();
+
+        if (name && code) {
+            saveSnippet(name, code, strategy);
             setNewSnippetName("");
             setDraftCode("");
             setIsCreatingSnippet(false);
@@ -137,8 +191,9 @@ const SnippetsManager = ({ onInject }) => {
     };
 
     const onSaveFolder = () => {
-        if (newFolderName) {
-            createSnippetFolder(newFolderName, strategy);
+        const name = newFolderName.trim();
+        if (name) {
+            createSnippetFolder(name, strategy);
             setNewFolderName("");
             setIsCreatingFolder(false);
         }
@@ -152,6 +207,19 @@ const SnippetsManager = ({ onInject }) => {
         }
     };
 
+    // Modal Handlers
+    const requestDeleteFolder = (id) => setModalState({ isOpen: true, type: 'FOLDER', id });
+    const requestDeleteSnippet = (id) => setModalState({ isOpen: true, type: 'SNIPPET', id });
+
+    const handleConfirmDelete = () => {
+        if (modalState.type === 'FOLDER') {
+            deleteSnippetFolder(modalState.id, strategy);
+        } else if (modalState.type === 'SNIPPET') {
+            deleteSnippet(modalState.id, strategy);
+        }
+        setModalState({ isOpen: false, type: null, id: null });
+    };
+
     return (
         <div className="sidebar" style={{ borderLeft: '1px solid #333', marginLeft: 0, display: 'flex', flexDirection: 'column', height: '100%' }}>
             <h2 style={{ padding: '0 10px', paddingTop: 10 }}>Global Presets ({strategy})</h2>
@@ -163,9 +231,9 @@ const SnippetsManager = ({ onInject }) => {
                         key={f.id}
                         folder={f}
                         snippets={getSnippetsInFolder(f.id)}
-                        onDelete={(id) => deleteSnippetFolder(id, strategy)}
+                        onRequestDelete={requestDeleteFolder}
                         onInject={handleInjectClick}
-                        onDeleteSnippet={(id) => deleteSnippet(id, strategy)}
+                        onRequestDeleteSnippet={requestDeleteSnippet}
                         onMoveSnippet={(sid, fid) => moveSnippet(sid, fid, strategy)}
                         allFolders={folders}
                     />
@@ -179,7 +247,7 @@ const SnippetsManager = ({ onInject }) => {
                         key={s.id}
                         snippet={s}
                         onInject={handleInjectClick}
-                        onDelete={(id) => deleteSnippet(id, strategy)}
+                        onRequestDelete={requestDeleteSnippet}
                         onMove={(sid, fid) => moveSnippet(sid, fid, strategy)}
                         folders={folders}
                     />
@@ -208,10 +276,18 @@ const SnippetsManager = ({ onInject }) => {
                             autoFocus
                             value={newFolderName}
                             onChange={e => setNewFolderName(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter') onSaveFolder(); }}
                             style={{ width: '100%', marginBottom: 5, padding: 5 }}
                         />
                         <div style={{ display: 'flex', gap: 5 }}>
-                            <button className="action-btn" style={{ flex: 1, background: '#4CAF50' }} onClick={onSaveFolder}>Create</button>
+                            <button
+                                className="action-btn"
+                                style={{ flex: 1, background: '#4CAF50', opacity: !newFolderName.trim() ? 0.5 : 1 }}
+                                onClick={onSaveFolder}
+                                disabled={!newFolderName.trim()}
+                            >
+                                Create
+                            </button>
                             <button className="toolbox-btn" style={{ flex: 1 }} onClick={() => setIsCreatingFolder(false)}>Cancel</button>
                         </div>
                     </div>
@@ -224,6 +300,7 @@ const SnippetsManager = ({ onInject }) => {
                             autoFocus
                             value={newSnippetName}
                             onChange={e => setNewSnippetName(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter') e.target.nextElementSibling?.focus(); }}
                             style={{ width: '100%', marginBottom: 5, padding: 5 }}
                         />
                         <textarea
@@ -233,12 +310,27 @@ const SnippetsManager = ({ onInject }) => {
                             style={{ width: '100%', height: 60, marginBottom: 5, background: '#1e1e1e', color: '#fff', border: '1px solid #444', fontFamily: 'monospace', fontSize: '0.8rem' }}
                         />
                         <div style={{ display: 'flex', gap: 5 }}>
-                            <button className="action-btn" style={{ flex: 1, background: '#4CAF50' }} onClick={onSaveSnippet}>Save</button>
+                            <button
+                                className="action-btn"
+                                style={{ flex: 1, background: '#4CAF50', opacity: (!newSnippetName.trim() || !draftCode.trim()) ? 0.5 : 1 }}
+                                onClick={onSaveSnippet}
+                                disabled={!newSnippetName.trim() || !draftCode.trim()}
+                            >
+                                Save
+                            </button>
                             <button className="toolbox-btn" style={{ flex: 1 }} onClick={() => setIsCreatingSnippet(false)}>Cancel</button>
                         </div>
                     </div>
                 )}
             </div>
+
+            {/* Confirmation Modal */}
+            <ConfirmationModal
+                isOpen={modalState.isOpen}
+                message={modalState.type === 'FOLDER' ? "Delete entire folder and its contents?" : "Delete this snippet?"}
+                onConfirm={handleConfirmDelete}
+                onCancel={() => setModalState({ isOpen: false, type: null, id: null })}
+            />
         </div>
     );
 };

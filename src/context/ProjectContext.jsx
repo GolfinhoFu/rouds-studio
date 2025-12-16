@@ -101,7 +101,7 @@ export const ProjectProvider = ({ children }) => {
         setAppData(prev => {
             const targetStrat = strategy || 'Vanilla';
             const list = prev.snippetFolders[targetStrat] || [];
-            const newFolder = { id: Date.now(), name };
+            const newFolder = { id: Date.now().toString(), name };
             return {
                 ...prev,
                 snippetFolders: {
@@ -111,7 +111,6 @@ export const ProjectProvider = ({ children }) => {
             };
         });
     };
-
     const deleteSnippetFolder = (folderId, strategy) => {
         setAppData(prev => {
             const targetStrat = strategy || 'Vanilla';
