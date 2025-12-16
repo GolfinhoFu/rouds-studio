@@ -1,30 +1,43 @@
 # Rounds Studio V2
 
-A modern, robust deck builder for Rounds mods. Built with React + Vite.
+A modern, desktop-based IDE for creating "Rounds" mods and card packs. Built with React (Vite) and Electron.
 
 ## Features
-- **Visual Card Editor**: Real-time preview of your card.
-- **Extended Rarities**: Common, Uncommon, Rare, Legendary.
-- **Custom Themes**: Color picker support.
-- **Advanced Stats**: Fine-tune Damage, Ammo, Speed, Jump, and more.
-- **Project Management**: Create and manage multiple decks.
+- **Visual Card Editor**: Design cards with real-time preview (HTML/CSS representation).
+- **Monaco Editor**: Integrated code editor with IntelliSense-like feel for C# snippets.
+- **Project Management**: Create, save, and load multiple card packs.
+- **Desktop App**: Runs as a standalone `.exe` (Windows).
 
-## How to Run
+## Development
 
-1. Open this folder in VS Code or Terminal.
-2. Install dependencies (if you haven't):
-   ```bash
-   npm install
-   ```
-3. Start the app:
-   ```bash
-   npm run dev
-   ```
-4. Open the link displayed (usually `http://localhost:5173`).
+### Prerequisites
+- Node.js (v18+)
+- Git
 
-## Building for Production
-To create a standalone build:
+### Setup
 ```bash
-npm run build
+npm install
 ```
-The output will be in the `dist` folder.
+
+### Run Locally (Web Mode)
+```bash
+npm run dev
+```
+
+### Run Locally (Electron Mode)
+```bash
+npm run electron:dev
+```
+
+### Build for Windows
+```bash
+npm run electron:build
+```
+
+## Architecture
+- `src/`: React source code.
+- `electron/`: Main process for desktop wrapper.
+- `release/`: Output folder for `.exe`.
+
+## License
+GNU GPLv3
