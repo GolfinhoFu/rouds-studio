@@ -6,7 +6,11 @@ export const ProjectContext = createContext();
 const STORAGE_KEY = 'roundsStudioDataV2';
 
 export const ProjectProvider = ({ children }) => {
-    const [appData, setAppData] = useState({ projects: [], snippets: { ModsPlus: [], Vanilla: [], Custom: [] } });
+    const [appData, setAppData] = useState({
+        projects: [],
+        snippets: { ModsPlus: [], Vanilla: [], Custom: [] },
+        snippetFolders: { ModsPlus: [], Vanilla: [], Custom: [] }
+    });
     const [currentProject, setCurrentProject] = useState(null);
     const [currentCardIndex, setCurrentCardIndex] = useState(-1);
 
@@ -17,6 +21,8 @@ export const ProjectProvider = ({ children }) => {
             const parsed = JSON.parse(stored);
             // Migration for existing data without snippets
             if (!parsed.snippets) parsed.snippets = { ModsPlus: [], Vanilla: [], Custom: [] };
+            // Migration for snippetFolders
+            if (!parsed.snippetFolders) parsed.snippetFolders = { ModsPlus: [], Vanilla: [], Custom: [] };
             setAppData(parsed);
         }
     }, []);
@@ -91,18 +97,69 @@ export const ProjectProvider = ({ children }) => {
         }));
     };
     // SNIPPET ACTIONS
-    const saveSnippet = (name, code, strategy) => {
+    const createSnippetFolder = (name, strategy) => {
+        setAppData(prev => {
+            const targetStrat = strategy || 'Vanilla';
+            const list = prev.snippetFolders[targetStrat] || [];
+            const newFolder = { id: Date.now(), name };
+            return {
+                ...prev,
+                snippetFolders: {
+                    ...prev.snippetFolders,
+                    [targetStrat]: [...list, newFolder]
+                }
+            };
+        });
+    };
+    const deleteSnippetFolder = (folderId, strategy) => {
+        setAppData(prev => {
+            const targetStrat = strategy || 'Vanilla';
+            // Move snippets in this folder back to root (null folderId)
+            const updatedSnippets = prev.snippets[targetStrat].map(s =>
+                s.folderId === folderId ? { ...s, folderId: null } : s
+            );
+
+            return {
+                ...prev,
+                snippets: {
+                    ...prev.snippets,
+                    [targetStrat]: updatedSnippets
+                },
+                snippetFolders: {
+                    ...prev.snippetFolders,
+                    [targetStrat]: (prev.snippetFolders[targetStrat] || []).filter(f => f.id !== folderId)
+                }
+            };
+        });
+    };
+
+    const saveSnippet = (name, code, strategy, folderId = null) => {
         setAppData(prev => {
             const targetStrat = strategy || 'Vanilla';
             const list = prev.snippets[targetStrat] || [];
 
-            // Check content to avoid dupes? Or just append.
-            const newSnippet = { id: Date.now(), name, code };
+            const newSnippet = { id: Date.now(), name, code, folderId };
+            const newSnippet = { id: Date.now(), name, code, folderId };
             return {
                 ...prev,
                 snippets: {
                     ...prev.snippets,
                     [targetStrat]: [...list, newSnippet]
+                }
+            };
+        });
+    };
+
+    const moveSnippet = (snippetId, folderId, strategy) => {
+        setAppData(prev => {
+            const targetStrat = strategy || 'Vanilla';
+            return {
+                ...prev,
+                snippets: {
+                    ...prev.snippets,
+                    [targetStrat]: prev.snippets[targetStrat].map(s =>
+                        s.id === snippetId ? { ...s, folderId } : s
+                    )
                 }
             };
         });
@@ -228,6 +285,9 @@ export const ProjectProvider = ({ children }) => {
             updateCard,
             saveSnippet,
             deleteSnippet,
+            createSnippetFolder,
+            deleteSnippetFolder,
+            moveSnippet,
             // Data Persistence
             exportData: () => {
                 const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appData));
