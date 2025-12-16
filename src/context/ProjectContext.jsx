@@ -101,7 +101,7 @@ export const ProjectProvider = ({ children }) => {
         setAppData(prev => {
             const targetStrat = strategy || 'Vanilla';
             const list = prev.snippetFolders[targetStrat] || [];
-            const newFolder = { id: Date.now().toString(), name };
+            const newFolder = { id: Date.now(), name };
             return {
                 ...prev,
                 snippetFolders: {
