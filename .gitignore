@@ -81,9 +81,10 @@ typings/
 .next
 out
 
-# Nuxt.js build / generate output
-.nuxt
-dist
+# Desktop Build Output
+release/
+dist/
+dist-electron/
 
 # Gatsby files
 .cache/
