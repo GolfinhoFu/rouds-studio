@@ -4,18 +4,35 @@ import { ProjectContext } from '../../context/ProjectContext';
 // --- Components ---
 
 const ConfirmationModal = ({ isOpen, message, onConfirm, onCancel }) => {
+    React.useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (isOpen && e.key === 'Escape') {
+                onCancel();
+            }
+        };
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, [isOpen, onCancel]);
+
     if (!isOpen) return null;
 
     return (
-        <div style={{
-            position: 'fixed',
-            top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000
-        }} onClick={onCancel}>
+        <div
+            style={{
+                position: 'fixed',
+                top: 0, left: 0, right: 0, bottom: 0,
+                backgroundColor: 'rgba(0,0,0,0.5)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 1000
+            }}
+            onClick={onCancel}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="modal-title"
+            tabIndex={-1}
+        >
             <div style={{
                 backgroundColor: '#2a2a2a',
                 padding: '20px',
@@ -24,10 +41,11 @@ const ConfirmationModal = ({ isOpen, message, onConfirm, onCancel }) => {
                 boxShadow: '0 4px 6px rgba(0,0,0,0.3)',
                 border: '1px solid #444'
             }} onClick={e => e.stopPropagation()}>
-                <h3 style={{ marginTop: 0, color: '#fff' }}>Confirm Action</h3>
+                <h3 id="modal-title" style={{ marginTop: 0, color: '#fff' }}>Confirm Action</h3>
                 <p style={{ color: '#ccc' }}>{message}</p>
                 <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
                     <button
+                        type="button"
                         className="toolbox-btn"
                         onClick={onCancel}
                         style={{ padding: '8px 16px' }}
@@ -35,6 +53,7 @@ const ConfirmationModal = ({ isOpen, message, onConfirm, onCancel }) => {
                         Cancel
                     </button>
                     <button
+                        type="button"
                         className="action-btn"
                         style={{ background: '#e53935', padding: '8px 16px' }}
                         onClick={onConfirm}
