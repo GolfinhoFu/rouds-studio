@@ -1,5 +1,6 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useRef } from 'react';
 import { ProjectContext } from '../../context/ProjectContext';
+import { DndContext, useDraggable, useDroppable } from '@dnd-kit/core';
 
 // --- Components ---
 
@@ -73,11 +74,88 @@ const FolderIcon = ({ expanded }) => (
     </span>
 );
 
-const FolderItem = ({ folder, snippets, onRequestDelete, onInject, onRequestDeleteSnippet, onMoveSnippet, allFolders }) => {
-    const [expanded, setExpanded] = useState(false);
+const DraggableSnippetItem = ({ snippet, onInject, onRequestDelete, onMove, folders }) => {
+    const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+        id: `snippet-${snippet.id}`,
+        data: { type: 'snippet', id: snippet.id, folderId: snippet.folderId }
+    });
+
+    // We keep the internal move logic (dropdown) as fallback/alternative
+    const [isMoving, setIsMoving] = useState(false);
+
+    const code = snippet.code || '';
+
+    const style = transform ? {
+        transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+        zIndex: 999,
+        opacity: isDragging ? 0.8 : 1,
+        touchAction: 'none' // Required for pointer sensors
+    } : undefined;
 
     return (
-        <div className="snippet-folder" style={{ marginBottom: 5 }}>
+        <div
+            ref={setNodeRef}
+            style={{ ...style, background: '#222', padding: 8, marginBottom: 8, borderRadius: 4, border: isDragging ? '1px solid #4CAF50' : 'none' }}
+            className="snippet-item"
+        >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div
+                    {...listeners}
+                    {...attributes}
+                    style={{ cursor: 'grab', display: 'flex', alignItems: 'center', flex: 1 }}
+                >
+                    <span style={{ marginRight: 5, color: '#666' }}>⣿</span>
+                    <strong style={{ color: '#d4d4d4' }}>{snippet.name}</strong>
+                </div>
+                <div style={{ display: 'flex', gap: 5 }}>
+                    <button type="button" onClick={() => setIsMoving(!isMoving)} title="Move to folder" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1em' }}>📂</button>
+                    <button type="button" onClick={() => onRequestDelete(snippet.id)} style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer', fontSize: '1.2em' }}>&times;</button>
+                </div>
+            </div>
+
+            {isMoving && (
+                <div style={{ margin: '5px 0', padding: 5, background: '#111', borderRadius: 4 }}>
+                    <select
+                        style={{ width: '100%', marginBottom: 5 }}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            onMove(snippet.id, val === 'ROOT' ? null : val);
+                            setIsMoving(false);
+                        }}
+                        defaultValue={snippet.folderId || 'ROOT'}
+                    >
+                        <option value="ROOT">Uncategorized (Root)</option>
+                        {folders.map(f => (
+                            <option key={f.id} value={f.id}>{f.name}</option>
+                        ))}
+                    </select>
+                </div>
+            )}
+
+            <div style={{ fontSize: '0.7rem', color: '#888', maxHeight: 40, overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: 'monospace', margin: '5px 0' }}>
+                {code.substring(0, 50)}{code.length > 50 ? '...' : ''}
+            </div>            <button type="button" className="toolbox-btn" style={{ marginTop: 5, width: '100%' }} onClick={() => onInject(code)}>+ Inject (Cursor)</button>
+        </div>
+    );
+};
+
+const DroppableFolderItem = ({ folder, snippets, onRequestDelete, onInject, onRequestDeleteSnippet, onMoveSnippet, allFolders }) => {
+    const { setNodeRef, isOver } = useDroppable({
+        id: `folder-${folder.id}`,
+        data: { type: 'folder', id: folder.id }
+    });
+
+    const [expanded, setExpanded] = useState(false);
+
+    const style = {
+        marginBottom: 5,
+        border: isOver ? '2px dashed #4CAF50' : '2px solid transparent',
+        borderRadius: 4,
+        background: isOver ? 'rgba(76, 175, 80, 0.1)' : 'transparent'
+    };
+
+    return (
+        <div ref={setNodeRef} style={style} className="snippet-folder">
             <div
                 className="folder-header"
                 style={{
@@ -93,7 +171,7 @@ const FolderItem = ({ folder, snippets, onRequestDelete, onInject, onRequestDele
                 role="button"
                 tabIndex={0}
                 onClick={() => setExpanded(!expanded)}
-                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(!expanded); }}}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(!expanded); } }}
             >
                 <div style={{ display: 'flex', alignItems: 'center' }}>
                     <FolderIcon expanded={expanded} />
@@ -114,7 +192,7 @@ const FolderItem = ({ folder, snippets, onRequestDelete, onInject, onRequestDele
                 <div className="folder-content" style={{ paddingLeft: 10, marginTop: 5, borderLeft: '2px solid #333' }}>
                     {snippets.length === 0 && <div style={{ color: '#666', fontSize: '0.8em', padding: 5 }}>Empty folder</div>}
                     {snippets.map(s => (
-                        <SnippetItem
+                        <DraggableSnippetItem
                             key={s.id}
                             snippet={s}
                             onInject={onInject}
@@ -129,46 +207,20 @@ const FolderItem = ({ folder, snippets, onRequestDelete, onInject, onRequestDele
     );
 };
 
-const SnippetItem = ({ snippet, onInject, onRequestDelete, onMove, folders }) => {
-    const [isMoving, setIsMoving] = useState(false);
+const DroppableRootZone = ({ children }) => {
+    const { setNodeRef, isOver } = useDroppable({
+        id: 'folder-ROOT',
+        data: { type: 'folder', id: null } // Root has null ID
+    });
 
     return (
-        <div className="snippet-item" style={{ background: '#222', padding: 8, marginBottom: 8, borderRadius: 4 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <strong style={{ color: '#d4d4d4' }}>{snippet.name}</strong>
-                <div style={{ display: 'flex', gap: 5 }}>
-                    <button type="button" onClick={() => setIsMoving(!isMoving)} title="Move to folder" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1em' }}>📂</button>
-                    <button type="button" onClick={() => onRequestDelete(snippet.id)} style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer', fontSize: '1.2em' }}>&times;</button>
-                </div>
-            </div>
-
-            {isMoving && (
-                <div style={{ margin: '5px 0', padding: 5, background: '#111', borderRadius: 4 }}>
-                    <select
-                        style={{ width: '100%', marginBottom: 5 }}
-                        onChange={(e) => {
-                            const val = e.target.value;
-                            // Convert ROOT to explicit null
-                            onMove(snippet.id, val === 'ROOT' ? null : val);
-                            setIsMoving(false);
-                        }}
-                        defaultValue={snippet.folderId || 'ROOT'}
-                    >
-                        <option value="ROOT">Uncategorized (Root)</option>
-                        {folders.map(f => (
-                            <option key={f.id} value={f.id}>{f.name}</option>
-                        ))}
-                    </select>
-                </div>
-            )}
-
-            <div style={{ fontSize: '0.7rem', color: '#888', maxHeight: 40, overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: 'monospace', margin: '5px 0' }}>
-                {(snippet.code || '').substring(0, 50)}...
-            </div>
-            <button type="button" className="toolbox-btn" style={{ marginTop: 5, width: '100%' }} onClick={() => onInject(snippet.code)}>+ Inject (Cursor)</button>
+        <div ref={setNodeRef} style={{ marginTop: 10, minHeight: 50, border: isOver ? '2px dashed #4CAF50' : 'none', borderRadius: 4 }}>
+            <div style={{ color: '#888', fontSize: '0.8rem', fontWeight: 'bold', marginBottom: 5 }}>Uncategorized</div>
+            {children}
         </div>
     );
 };
+
 
 const SnippetsManager = ({ onInject }) => {
     const {
@@ -188,6 +240,9 @@ const SnippetsManager = ({ onInject }) => {
     const [isCreatingSnippet, setIsCreatingSnippet] = useState(false);
     const [isCreatingFolder, setIsCreatingFolder] = useState(false);
 
+    // Refs for focus management
+    const snippetCodeRef = useRef(null);
+
     // Modal State
     const [modalState, setModalState] = useState({ isOpen: false, type: null, id: null });
 
@@ -196,6 +251,28 @@ const SnippetsManager = ({ onInject }) => {
     const strategy = currentProject.data.strategy || 'Vanilla';
     const snippets = (appData.snippets && appData.snippets[strategy]) ? appData.snippets[strategy] : [];
     const folders = (appData.snippetFolders && appData.snippetFolders[strategy]) ? appData.snippetFolders[strategy] : [];
+
+    // DnD Handler
+    const handleDragEnd = (event) => {
+        const { active, over } = event;
+
+        if (!over || !active) return;
+
+        const activeIdStr = String(active.id);
+        const overIdStr = String(over.id);
+
+        if (activeIdStr.startsWith('snippet-') && overIdStr.startsWith('folder-')) {
+            const snippetId = Number(activeIdStr.replace('snippet-', ''));
+            const folderIdPart = overIdStr.replace('folder-', '');
+            const targetFolderId = folderIdPart === 'ROOT' ? null : Number(folderIdPart);
+
+            // Access snippet directly from context data to verify current state if needed, 
+            // but we can trust the event usually.
+            // Move snippet!
+            moveSnippet(snippetId, targetFolderId, strategy);
+        }
+    };
+
 
     // Helper to filter
     const getSnippetsInFolder = (folderId) => snippets.filter(s => s.folderId === folderId);
@@ -244,118 +321,122 @@ const SnippetsManager = ({ onInject }) => {
     };
 
     return (
-        <div className="sidebar" style={{ borderLeft: '1px solid #333', marginLeft: 0, display: 'flex', flexDirection: 'column', height: '100%' }}>
-            <h2 style={{ padding: '0 10px', paddingTop: 10 }}>Global Presets ({strategy})</h2>
+        <DndContext onDragEnd={handleDragEnd}>
+            <div className="sidebar" style={{ borderLeft: '1px solid #333', marginLeft: 0, display: 'flex', flexDirection: 'column', height: '100%' }}>
+                <h2 style={{ padding: '0 10px', paddingTop: 10 }}>Global Presets ({strategy})</h2>
 
-            <div className="snippet-list-container" style={{ flex: 1, overflowY: 'auto', padding: 10 }}>
-                {/* Folders */}
-                {folders.map(f => (
-                    <FolderItem
-                        key={f.id}
-                        folder={f}
-                        snippets={getSnippetsInFolder(f.id)}
-                        onRequestDelete={requestDeleteFolder}
-                        onInject={handleInjectClick}
-                        onRequestDeleteSnippet={requestDeleteSnippet}
-                        onMoveSnippet={(sid, fid) => moveSnippet(sid, fid, strategy)}
-                        allFolders={folders}
-                    />
-                ))}
-
-                {/* Root Snippets */}
-                {rootSnippets.length > 0 && <div style={{ marginTop: 10, color: '#888', fontSize: '0.8rem', fontWeight: 'bold', marginBottom: 5 }}>Uncategorized</div>}
-
-                {rootSnippets.map(s => (
-                    <SnippetItem
-                        key={s.id}
-                        snippet={s}
-                        onInject={handleInjectClick}
-                        onRequestDelete={requestDeleteSnippet}
-                        onMove={(sid, fid) => moveSnippet(sid, fid, strategy)}
-                        folders={folders}
-                    />
-                ))}
-
-                {snippets.length === 0 && folders.length === 0 && (
-                    <div style={{ color: '#666', fontStyle: 'italic', padding: 10, textAlign: 'center' }}>
-                        No presets or folders.
-                    </div>
-                )}
-            </div>
-
-            {/* Action Bar */}
-            <div className="actions-bar" style={{ padding: 10, borderTop: '1px solid #333' }}>
-                {!isCreatingSnippet && !isCreatingFolder && (
-                    <div style={{ display: 'flex', gap: 5 }}>
-                        <button className="action-btn" style={{ flex: 1 }} onClick={() => setIsCreatingSnippet(true)}>+ Snippet</button>
-                        <button className="toolbox-btn" style={{ flex: 1 }} onClick={() => setIsCreatingFolder(true)}>+ Folder</button>
-                    </div>
-                )}
-
-                {isCreatingFolder && (
-                    <div className="creation-form" style={{ background: '#2a2a2a', padding: 10, borderRadius: 6 }}>
-                        <input
-                            placeholder="Folder Name"
-                            autoFocus
-                            value={newFolderName}
-                            onChange={e => setNewFolderName(e.target.value)}
-                            onKeyDown={e => { if (e.key === 'Enter') onSaveFolder(); }}
-                            style={{ width: '100%', marginBottom: 5, padding: 5 }}
+                <div className="snippet-list-container" style={{ flex: 1, overflowY: 'auto', padding: 10 }}>
+                    {/* Folders */}
+                    {folders.map(f => (
+                        <DroppableFolderItem
+                            key={f.id}
+                            folder={f}
+                            snippets={getSnippetsInFolder(f.id)}
+                            onRequestDelete={requestDeleteFolder}
+                            onInject={handleInjectClick}
+                            onRequestDeleteSnippet={requestDeleteSnippet}
+                            onMoveSnippet={(sid, fid) => moveSnippet(sid, fid, strategy)}
+                            allFolders={folders}
                         />
-                        <div style={{ display: 'flex', gap: 5 }}>
-                            <button
-                                className="action-btn"
-                                style={{ flex: 1, background: '#4CAF50', opacity: !newFolderName.trim() ? 0.5 : 1 }}
-                                onClick={onSaveFolder}
-                                disabled={!newFolderName.trim()}
-                                type="button"
-                            >
-                                Create
-                            </button>
-                            <button type="button" className="toolbox-btn" style={{ flex: 1 }} onClick={() => setIsCreatingFolder(false)}>Cancel</button>
+                    ))}
+
+                    {/* Root Snippets */}
+                    <DroppableRootZone>
+                        {rootSnippets.map(s => (
+                            <DraggableSnippetItem
+                                key={s.id}
+                                snippet={s}
+                                onInject={handleInjectClick}
+                                onRequestDelete={requestDeleteSnippet}
+                                onMove={(sid, fid) => moveSnippet(sid, fid, strategy)}
+                                folders={folders}
+                            />
+                        ))}
+                    </DroppableRootZone>
+
+                    {snippets.length === 0 && folders.length === 0 && (
+                        <div style={{ color: '#666', fontStyle: 'italic', padding: 10, textAlign: 'center' }}>
+                            No presets or folders.
                         </div>
-                    </div>
-                )}
+                    )}
+                </div>
 
-                {isCreatingSnippet && (
-                    <div className="creation-form" style={{ background: '#2a2a2a', padding: 10, borderRadius: 6 }}>
-                        <input
-                            placeholder="Snippet Name"
-                            autoFocus
-                            value={newSnippetName}
-                            onChange={e => setNewSnippetName(e.target.value)}
-                            onKeyDown={e => { if (e.key === 'Enter') e.target.nextElementSibling?.focus(); }}
-                            style={{ width: '100%', marginBottom: 5, padding: 5 }}
-                        />
-                        <textarea
-                            placeholder="Paste code here..."
-                            value={draftCode}
-                            onChange={e => setDraftCode(e.target.value)}
-                            style={{ width: '100%', height: 60, marginBottom: 5, background: '#1e1e1e', color: '#fff', border: '1px solid #444', fontFamily: 'monospace', fontSize: '0.8rem' }}
-                        />
+                {/* Action Bar */}
+                <div className="actions-bar" style={{ padding: 10, borderTop: '1px solid #333' }}>
+                    {!isCreatingSnippet && !isCreatingFolder && (
                         <div style={{ display: 'flex', gap: 5 }}>
-                            <button
-                                className="action-btn"
-                                style={{ flex: 1, background: '#4CAF50', opacity: (!newSnippetName.trim() || !draftCode.trim()) ? 0.5 : 1 }}
-                                onClick={onSaveSnippet}
-                                disabled={!newSnippetName.trim() || !draftCode.trim()}
-                            >
-                                Save
-                            </button>
-                            <button className="toolbox-btn" style={{ flex: 1 }} onClick={() => setIsCreatingSnippet(false)}>Cancel</button>
+                            <button className="action-btn" style={{ flex: 1 }} onClick={() => setIsCreatingSnippet(true)}>+ Snippet</button>
+                            <button className="toolbox-btn" style={{ flex: 1 }} onClick={() => setIsCreatingFolder(true)}>+ Folder</button>
                         </div>
-                    </div>
-                )}
-            </div>
+                    )}
 
-            {/* Confirmation Modal */}
-            <ConfirmationModal
-                isOpen={modalState.isOpen}
-                message={modalState.type === 'FOLDER' ? "Delete this folder? Snippets inside will be moved to Uncategorized." : "Delete this snippet?"}
-                onConfirm={handleConfirmDelete}
-                onCancel={() => setModalState({ isOpen: false, type: null, id: null })}
-            />
-        </div>
+                    {isCreatingFolder && (
+                        <div className="creation-form" style={{ background: '#2a2a2a', padding: 10, borderRadius: 6 }}>
+                            <input
+                                placeholder="Folder Name"
+                                autoFocus
+                                value={newFolderName}
+                                onChange={e => setNewFolderName(e.target.value)}
+                                onKeyDown={e => { if (e.key === 'Enter') onSaveFolder(); }}
+                                style={{ width: '100%', marginBottom: 5, padding: 5 }}
+                            />
+                            <div style={{ display: 'flex', gap: 5 }}>
+                                <button
+                                    className="action-btn"
+                                    style={{ flex: 1, background: '#4CAF50', opacity: !newFolderName.trim() ? 0.5 : 1 }}
+                                    onClick={onSaveFolder}
+                                    disabled={!newFolderName.trim()}
+                                    type="button"
+                                >
+                                    Create
+                                </button>
+                                <button type="button" className="toolbox-btn" style={{ flex: 1 }} onClick={() => setIsCreatingFolder(false)}>Cancel</button>
+                            </div>
+                        </div>
+                    )}
+
+                    {isCreatingSnippet && (
+                        <div className="creation-form" style={{ background: '#2a2a2a', padding: 10, borderRadius: 6 }}>
+                            <input
+                                placeholder="Snippet Name"
+                                autoFocus
+                                value={newSnippetName}
+                                onChange={e => setNewSnippetName(e.target.value)}
+                                onKeyDown={e => { if (e.key === 'Enter') snippetCodeRef.current?.focus(); }}
+                                style={{ width: '100%', marginBottom: 5, padding: 5 }}
+                            />
+                            <textarea
+                                ref={snippetCodeRef}
+                                placeholder="Paste code here..."
+                                value={draftCode}
+                                onChange={e => setDraftCode(e.target.value)}
+                                style={{ width: '100%', height: 60, marginBottom: 5, background: '#1e1e1e', color: '#fff', border: '1px solid #444', fontFamily: 'monospace', fontSize: '0.8rem' }}
+                            />
+                            <div style={{ display: 'flex', gap: 5 }}>
+                                <button
+                                    className="action-btn"
+                                    style={{ flex: 1, background: '#4CAF50', opacity: (!newSnippetName.trim() || !draftCode.trim()) ? 0.5 : 1 }}
+                                    onClick={onSaveSnippet}
+                                    disabled={!newSnippetName.trim() || !draftCode.trim()}
+                                    type="button"
+                                >
+                                    Save
+                                </button>
+                                <button type="button" className="toolbox-btn" style={{ flex: 1 }} onClick={() => setIsCreatingSnippet(false)}>Cancel</button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Confirmation Modal */}
+                <ConfirmationModal
+                    isOpen={modalState.isOpen}
+                    message={modalState.type === 'FOLDER' ? "Delete this folder? Snippets inside will be moved to Uncategorized." : "Delete this snippet?"}
+                    onConfirm={handleConfirmDelete}
+                    onCancel={() => setModalState({ isOpen: false, type: null, id: null })}
+                />
+            </div>
+        </DndContext>
     );
 };
 
