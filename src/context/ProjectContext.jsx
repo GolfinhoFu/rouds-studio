@@ -301,11 +301,11 @@ const createCard = () => {
 
 const deleteCard = (index) => {
     if (!currentProject) return;
+    const newLength = currentProject.data.cards.length - 1;
     updateCurrentProjectData(proj => {
         proj.data.cards.splice(index, 1);
         return proj;
     });
-    const newLength = currentProject.data.cards.length - 1;
     setCurrentCardIndex(newLength === 0 ? -1 : Math.max(0, index - 1));
 };
 const updateCard = (index, field, value) => {
