@@ -418,10 +418,11 @@ const SnippetsManager = ({ onInject }) => {
                                     style={{ flex: 1, background: '#4CAF50', opacity: (!newSnippetName.trim() || !draftCode.trim()) ? 0.5 : 1 }}
                                     onClick={onSaveSnippet}
                                     disabled={!newSnippetName.trim() || !draftCode.trim()}
+                                    type="button"
                                 >
                                     Save
                                 </button>
-                                <button className="toolbox-btn" style={{ flex: 1 }} onClick={() => setIsCreatingSnippet(false)}>Cancel</button>
+                                <button type="button" className="toolbox-btn" style={{ flex: 1 }} onClick={() => setIsCreatingSnippet(false)}>Cancel</button>
                             </div>
                         </div>
                     )}
