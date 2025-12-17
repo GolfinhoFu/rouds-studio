@@ -52,8 +52,9 @@ export const ProjectProvider = ({ children }) => {
                 snippetFolders: { ...prev.snippetFolders, Vanilla: [...DEFAULT_FOLDERS.Vanilla] }
             }));
         }
-    }
-    }, []);
+             snippetFolders: { ...prev.snippetFolders, Vanilla: [...DEFAULT_FOLDERS.Vanilla] }
+         }));
+}, []);
 
 // SAVE
 useEffect(() => {
