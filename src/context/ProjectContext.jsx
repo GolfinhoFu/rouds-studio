@@ -350,7 +350,11 @@ return (
         importData: (jsonString) => {
             try {
                 const parsed = JSON.parse(jsonString);
-                if (parsed.projects && parsed.snippets && parsed.snippetFolders) {
+                if (
+                    Array.isArray(parsed.projects) &&
+                    typeof parsed.snippets === 'object' && parsed.snippets !== null &&
+                    typeof parsed.snippetFolders === 'object' && parsed.snippetFolders !== null
+                ) {
                     setAppData(parsed);
                     alert("Data imported successfully!");
                 } else {
